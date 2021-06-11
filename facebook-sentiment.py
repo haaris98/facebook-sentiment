@@ -35,7 +35,7 @@ def main():
     st.sidebar.markdown("Only loaded dataset can be used for this app.")
     @st.cache(persist=True)
     def load_data():
-        data = pd.read_csv("Telco-2020-VADER-Data-Preprocessing.csv")
+        data = pd.read_csv("Telco-2020-Sentiment-TextBlob")
         data["created_time"] = pd.to_datetime(data["created_time"])
         return data
 
@@ -107,7 +107,7 @@ def main():
     @st.cache
     def load_data(persist=True):
         #data = pd.read_csv('Digi-2020-Sentiment.csv')
-        data = pd.read_csv('Telco-2020-VADER-Balanced.csv')  
+        data = pd.read_csv('Telco-2020-Sentiment-TextBlob-No-Neutral.csv')  
         return data
 
     df = load_data()

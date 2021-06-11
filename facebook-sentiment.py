@@ -31,7 +31,8 @@ def main():
     st.sidebar.title("Sentiment Analysis of Telco in Malaysia using Facebook Comments")
     st.sidebar.title("😀 😐 😡")
     st.sidebar.markdown("This Sentiment Analysis has been done using VADER")
-    st.sidebar.markdown("The data that has been preprocessed used in this Data Visualization.")
+    st.sidebar.markdown("The dataset has been labeled with sentiment class and preprocessed used in this Data Visualization.")
+    st.sidebar.markdown("Only loaded dataset can be used for this app.")
     @st.cache(persist=True)
     def load_data():
         data = pd.read_csv("Telco-2020-VADER-Data-Preprocessing.csv")
@@ -105,10 +106,12 @@ def main():
 
     @st.cache
     def load_data(persist=True):
-        data = pd.read_csv('Digi-2020-Sentiment.csv') #Telco-2020-Sentiment-TextBlob-No-Neutral.csv
+        #data = pd.read_csv('Digi-2020-Sentiment.csv')
+        data = pd.read_csv('Telco-2020-VADER-Balanced.csv')  
         return data
 
     df = load_data()
+    
 
     # Feature Extraction
     # selecting feature extraction 
@@ -120,11 +123,14 @@ def main():
         # TF-IDF
         if(feature_name == "TF-IDF"):
             vectorizer = TfidfVectorizer (max_features=100, min_df=7, max_df=0.8, stop_words=stopwords.words('english'))
-            processed_features = vectorizer.fit_transform(df['sentence']).toarray()
+            #processed_features = vectorizer.fit_transform(df['sentence']).toarray() 
+            processed_features = vectorizer.fit_transform(df['lemmatized']).toarray()#sentimentLabel
             st.subheader("Done!")
             # Display Horizontal Bar Chart
-            neg_matrix = vectorizer.transform(df[df.sentiment == 0].sentence)
-            pos_matrix = vectorizer.transform(df[df.sentiment == 1].sentence)
+            #neg_matrix = vectorizer.transform(df[df.sentiment == 0].sentence) # sentimentLabel
+            #pos_matrix = vectorizer.transform(df[df.sentiment == 1].sentence) # sentimentLabel
+            neg_matrix = vectorizer.transform(df[df.sentimentLabel == -1].lemmatized) # sentimentLabel
+            pos_matrix = vectorizer.transform(df[df.sentimentLabel == 1].lemmatized) # sentimentLabel
             neg_words = neg_matrix.sum(axis=0)
             neg_words_freq = [(word, neg_words[0, idx]) for word, idx in vectorizer.vocabulary_.items()]
             neg_tf = pd.DataFrame(list(sorted(neg_words_freq, key = lambda x: x[1], reverse=True)),columns=['Terms','negative'])
@@ -157,11 +163,14 @@ def main():
         # Bag-of-words
         else:
             cv = CountVectorizer(stop_words='english',max_features=100)
-            processed_features = cv.fit_transform(df['sentence']).toarray()
+            #processed_features = cv.fit_transform(df['sentence']).toarray()
+            processed_features = cv.fit_transform(df['lemmatized']).toarray() # sentimentLabel
             st.subheader("Done!")
             # Display Horizontal Bar Chart
-            neg_matrix = cv.transform(df[df.sentiment == 0].sentence)
-            pos_matrix = cv.transform(df[df.sentiment == 1].sentence)
+            #neg_matrix = cv.transform(df[df.sentiment == 0].sentence)   # sentimentLabel
+            #pos_matrix = cv.transform(df[df.sentiment == 1].sentence)   # sentimentLabel
+            neg_matrix = cv.transform(df[df.sentimentLabel == -1].lemmatized) # sentimentLabel
+            pos_matrix = cv.transform(df[df.sentimentLabel == 1].lemmatized) # sentimentLabel
 
             neg_words = neg_matrix.sum(axis=0)
             neg_words_freq = [(word, neg_words[0, idx]) for word, idx in cv.vocabulary_.items()]
@@ -177,8 +186,8 @@ def main():
             fig1 = plt.figure()
             y_pos = np.arange(20)
             plt.barh(y_pos, pos_words_tf_df.sort_values(by='positive', ascending=False)['positive'][:20], align='center', alpha=0.5)
-            plt.yticks(y_pos, pos_words_tf_df.sort_values(by='positive', ascending=False)['positive'][:20].index,rotation=45)
-            plt.ylabel('Top 20 Positive Terms')
+            plt.yticks(y_pos, pos_words_tf_df.sort_values(by='positive', ascending=False)['positive'][:20].index)
+            plt.ylabel('Positive Terms')
             plt.xlabel('Frequency')
             plt.title('Top 20 Positive Terms using Bag-of-Word')
             st.pyplot(fig1)
@@ -186,8 +195,8 @@ def main():
             fig2 = plt.figure()
             y_pos = np.arange(20)
             plt.barh(y_pos, neg_tf_df.sort_values(by='negative', ascending=False)['negative'][:20], align='center', color="red", alpha=0.5)
-            plt.yticks(y_pos, neg_tf_df.sort_values(by='negative', ascending=False)['negative'][:20].index,rotation=45)
-            plt.ylabel('Top 20 Negative Terms')
+            plt.yticks(y_pos, neg_tf_df.sort_values(by='negative', ascending=False)['negative'][:20].index)
+            plt.ylabel('Negative Terms')
             plt.xlabel('Frequency')
             plt.title('Top 20 Negative Terms using Bag-of-Word')
             st.pyplot(fig2)
@@ -195,13 +204,13 @@ def main():
 
     # selecting classifier 
     st.sidebar.subheader("Machine Learning Algorithms")
-    classifier_name = st.sidebar.selectbox("Select Classifier",("Random Forest", "Decision Tree","Logistic Regression","Naive Bayes","Support Vector Machine"))
+    classifier_name = st.sidebar.selectbox("Select Classifier",("Random Forest", "Decision Tree","Logistic Regression","Naive Bayes"))
     if not st.sidebar.checkbox("Hide", True, key="8"):
-    
+        st.write("Dataset Shape:", df.shape)
+        st.write(df.sentiment.value_counts())
         # Divide data into training and test sets
-
-        labels = np.array(df['sentiment'])
-
+        #labels = np.array(df['sentiment']) # sentimentLabel
+        labels = np.array(df['sentimentLabel']) # sentimentLabel
         X_train, X_test, y_train, y_test = train_test_split(processed_features, labels, test_size=0.3, random_state=69)
         # Classifier
         if(classifier_name == "Random Forest"):
@@ -222,7 +231,7 @@ def main():
             st.write('Recall= {:.2f}'. format(recall_score(y_test, y_pred)))
             st.write('F1= {:.2f}'. format(f1_score(y_test, y_pred)))
             st.write('Accuracy= {:.2f}'. format(accuracy_score(y_test, y_pred)))
-    
+            st.write(classification_report(y_test,y_pred))
             # Calculate AUC
             prob_RF = rf.predict_proba(X_test)
             prob_RF = prob_RF[:, 1]
@@ -302,6 +311,8 @@ def main():
             st.pyplot(fig1)
 
         elif(classifier_name == "Logistic Regression"):
+            st.write("Dataset Shape:", df.shape)
+            st.write(df.sentiment.value_counts())
             st.title(classifier_name)
             st.subheader("Running..")
             lr = LogisticRegression()
@@ -354,6 +365,8 @@ def main():
             st.pyplot(fig1)
 
         elif(classifier_name == "Naive Bayes"):
+            st.write("Dataset Shape:", df.shape)
+            st.write(df.sentiment.value_counts())
             st.title(classifier_name)
             st.subheader("Running..")
             nb = MultinomialNB() 
@@ -405,6 +418,8 @@ def main():
 
             st.pyplot(fig1)
         else:
+            st.write("Dataset Shape:", df.shape)
+            st.write(df.sentiment.value_counts())
             st.title(classifier_name)
             st.subheader("Running..")
             svc = SVC(kernel='linear', gamma='auto') # 'linear'kernel='rbf'
